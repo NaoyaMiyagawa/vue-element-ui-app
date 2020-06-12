@@ -1,7 +1,15 @@
 <template>
   <el-row class="count-row" :gutter="2">
-    <el-col :span="4" :offset="20">
-      <el-input size="mini" :disabled="true" :value="dataCount">
+    <el-col :span="4" :offset="12">
+      <el-button type="plain" plain @click="resetInfiniteScroll">リセット</el-button>
+    </el-col>
+    <el-col :span="4" :offset="0">
+      <el-input :disabled="true" :value="displayDataLength">
+        <template slot="prepend">読込件数</template>
+      </el-input>
+    </el-col>
+    <el-col :span="4" :offset="0">
+      <el-input :disabled="true" :value="tableDataLength">
         <template slot="prepend">全体件数</template>
       </el-input>
     </el-col>
@@ -12,13 +20,18 @@
 export default {
   name: 'DataCountPanel',
   props: {
-    dataCount: {
+    tableDataLength: {
       type: Number,
       default: 0,
     },
-    selectedCount: {
+    displayDataLength: {
       type: Number,
       default: 0,
+    },
+  },
+  methods: {
+    resetInfiniteScroll() {
+      this.$emit('reset-infinite-scroll');
     },
   },
 };
