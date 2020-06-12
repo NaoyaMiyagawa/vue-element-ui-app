@@ -1,8 +1,8 @@
 <template>
-  <div class="table" style="width: 1200px; margin: auto;">
+  <div class="table" style="width: 1000px; margin: auto;">
     <el-table
       ref="singleTable"
-      :data="tableData"
+      :data="displayData"
       id="single-table"
       highlight-current-row
       @current-change="handleCurrentChange"
@@ -10,56 +10,63 @@
       border
       stripe
     >
-      <!-- fixed columns -->
-      <el-table-column type="selection" width="50" fixed />
-      <el-table-column type="index" width="50" fixed />
-      <el-table-column prop="countryName" label="CountryName" width="200" sortable fixed />
-
       <!-- unfixed columns -->
+      <el-table-column type="index" width="50" />
+      <el-table-column prop="countryName" label="CountryName" width="200" sortable />
       <el-table-column prop="countryCode" label="CountryCode" width="150" sortable />
       <el-table-column prop="regionCode" label="RegionCode" width="150" sortable />
       <el-table-column prop="regionName" label="RegionName" width="200" sortable />
       <el-table-column prop="remarks" label="Remarks" width="250" sortable />
-      <el-table-column prop="data1" label="Data1" width="100" sortable />
-      <el-table-column prop="data2" label="Data2" width="100" sortable />
-      <el-table-column prop="data3" label="Data3" width="100" sortable />
-      <el-table-column prop="data4" label="Data4" width="100" sortable />
-      <el-table-column prop="data5" label="Data5" width="100" sortable />
-      <el-table-column prop="data6" label="Data6" width="100" sortable />
-      <el-table-column prop="data7" label="Data7" width="100" sortable />
-      <el-table-column prop="data8" label="Data8" width="100" sortable />
-      <el-table-column prop="data9" label="Data9" width="100" sortable />
-      <el-table-column prop="data10" label="Data10" width="100" sortable />
-      <el-table-column prop="data11" label="Data11" width="100" sortable />
-      <el-table-column prop="data12" label="Data12" width="100" sortable />
-      <el-table-column prop="data13" label="Data13" width="100" sortable />
-      <el-table-column prop="data14" label="Data14" width="100" sortable />
-      <el-table-column prop="data15" label="Data15" width="100" sortable />
-      <el-table-column prop="data16" label="Data16" width="100" sortable />
-      <el-table-column prop="data17" label="Data17" width="100" sortable />
-      <el-table-column prop="data18" label="Data18" width="100" sortable />
-      <el-table-column prop="data19" label="Data19" width="100" sortable />
+
+      <!-- 動的読み込みスクロール -->
+      <infinite-loading
+        slot="append"
+        :identifier="infiniteScroll.id"
+        :distance="1000"
+        @infinite="infiniteHandler"
+        force-use-infinite-wrapper=".el-table__body-wrapper"
+      >
+        <span slot="no-results" />
+        <span slot="no-more" />
+      </infinite-loading>
     </el-table>
 
-    <data-count-panel :data-count="dataCount" :selected-count="this.tableData.length" />
+    <data-count-panel
+      :table-data-length="tableData.length"
+      :display-data-length="displayData.length"
+      @reset-infinite-scroll="resetInfiniteScroll"
+    />
   </div>
 </template>
 
 <script>
 import axios from 'axios';
+import InfiniteLoading from 'vue-infinite-loading';
 import DataCountPanel from './DataCountPanel';
 
 export default {
   name: 'Table',
   components: {
+    InfiniteLoading,
     DataCountPanel,
   },
   data() {
     return {
-      dataCount: 0,
+      loading: false,
       tableData: [],
       currentRow: null,
+      infiniteScroll: {
+        id: +new Date(),
+        defaultIndex: 30,
+        additionalIndex: 5,
+        currentIndex: 30,
+      },
     };
+  },
+  computed: {
+    displayData() {
+      return this.tableData.slice(0, this.infiniteScroll.currentIndex);
+    },
   },
   created() {
     this.getDataList();
@@ -72,38 +79,38 @@ export default {
       this.currentRow = val;
     },
     async getDataList() {
+      this.tableData = [];
       let apiBaseUrl = 'https://opendata.resas-portal.go.jp';
       let apiUrl = apiBaseUrl + '/api/v1/regions/middle';
-      // let apiUrl = apiBaseUrl + '/api/v1/regions/middle?regionCode=1';
+
+      this.loading = true;
       const res = await axios.get(apiUrl, {
         headers: { 'X-API-KEY': process.env.VUE_APP_RESAS_API_KEY },
       });
+      this.loading = false;
 
-      let dataList = res.data.result;
-      dataList.forEach(data => {
-        data.data1 = 'data1';
-        data.data2 = 'data2';
-        data.data3 = 'data3';
-        data.data4 = 'data4';
-        data.data5 = 'data5';
-        data.data6 = 'data6';
-        data.data7 = 'data7';
-        data.data8 = 'data8';
-        data.data9 = 'data9';
-        data.data10 = 'data10';
-        data.data11 = 'data11';
-        data.data12 = 'data12';
-        data.data13 = 'data13';
-        data.data14 = 'data14';
-        data.data15 = 'data15';
-        data.data16 = 'data16';
-        data.data17 = 'data17';
-        data.data18 = 'data18';
-        data.data19 = 'data19';
-      });
+      if (!res) return;
 
-      this.tableData = dataList;
-      this.dataCount = dataList.length;
+      this.tableData = res.data.result;
+
+      this.infiniteScroll.id++;
+    },
+    // 動的読み込みスクロール
+    infiniteHandler($state) {
+      if (this.tableData.length && this.tableData.length > this.displayData.length) {
+        // 追加読み込み
+        this.infiniteScroll.currentIndex += this.infiniteScroll.additionalIndex;
+        $state.loaded();
+      } else {
+        // 全読み込み完了
+        $state.complete();
+      }
+    },
+    // 動的読み込みスクロールをリセット
+    resetInfiniteScroll() {
+      this.infiniteScroll.id++;
+      this.infiniteScroll.currentIndex = this.infiniteScroll.defaultIndex;
+      document.getElementsByClassName('el-table__body-wrapper')[0].scrollTo({ top: 0 });
     },
   },
 };
